@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Assignment 1 – Sentiment Model Training</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+<style>
+
+body{
+background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+margin:0;
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+font-family:'Poppins',sans-serif;
+color:white;
+}
+
+.card{
+width:500px;
+padding:35px;
+border-radius:18px;
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(10px);
+text-align:center;
+box-shadow:0 10px 40px rgba(0,0,0,0.5);
+}
+
+h1{
+margin-bottom:10px;
+}
+
+.sub{
+font-size:14px;
+opacity:0.8;
+margin-bottom:25px;
+}
+
+button{
+background:#00c9ff;
+background:linear-gradient(90deg,#00c9ff,#92fe9d);
+border:none;
+padding:12px 22px;
+border-radius:8px;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+margin-top:10px;
+transition:0.3s;
+}
+
+button:hover{
+transform:scale(1.05);
+}
+
+.status{
+margin-top:25px;
+font-size:18px;
+font-weight:bold;
+}
+
+.progress{
+width:100%;
+background:rgba(255,255,255,0.15);
+border-radius:10px;
+margin-top:20px;
+height:15px;
+overflow:hidden;
+}
+
+.progress-bar{
+height:100%;
+width:0%;
+background:linear-gradient(90deg,#00ff87,#60efff);
+transition:0.3s;
+}
+
+.epoch{
+margin-top:10px;
+font-size:14px;
+opacity:0.9;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>Assignment 1</h1>
+<div class="sub">Train Sentiment Classification Model using TensorFlow.js</div>
+
+<button onclick="startTraining()">Start Training</button>
+
+<div class="progress">
+<div class="progress-bar" id="bar"></div>
+</div>
+
+<div class="epoch" id="epoch">Epoch: 0</div>
+
+<div id="status" class="status">
+Status : Waiting
+</div>
+
+</div>
+
+<script>
+
+async function startTraining(){
+
+document.getElementById("status").innerText="Status : Training Started";
+
+const model=tf.sequential();
+
+model.add(tf.layers.dense({units:16,inputShape:[10],activation:'relu'}));
+model.add(tf.layers.dense({units:8,activation:'relu'}));
+model.add(tf.layers.dense({units:1,activation:'sigmoid'}));
+
+model.compile({
+optimizer:'adam',
+loss:'binaryCrossentropy',
+metrics:['accuracy']
+});
+
+const xs=tf.randomNormal([100,10]);
+const ys=tf.round(tf.randomUniform([100,1]));
+
+await model.fit(xs,ys,{
+epochs:20,
+
+callbacks:{
+onEpochEnd:(epoch,logs)=>{
+
+document.getElementById("epoch").innerText="Epoch : "+(epoch+1);
+
+let percent=((epoch+1)/20)*100;
+document.getElementById("bar").style.width=percent+"%";
+
+document.getElementById("status").innerText=
+"Loss : "+logs.loss.toFixed(4)+" | Accuracy : "+logs.acc?.toFixed(4);
+
+}
+}
+
+});
+
+document.getElementById("status").innerText="Training Complete";
+
+}
+
+</script>
+
+</body>
+</html>

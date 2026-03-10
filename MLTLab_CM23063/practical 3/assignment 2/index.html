@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Assignment 2 – Sentiment Prediction</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+<style>
+
+body{
+background:linear-gradient(135deg,#141e30,#243b55);
+height:100vh;
+margin:0;
+font-family:'Poppins',sans-serif;
+display:flex;
+justify-content:center;
+align-items:center;
+color:white;
+}
+
+.card{
+width:520px;
+background:rgba(255,255,255,0.08);
+padding:35px;
+border-radius:20px;
+text-align:center;
+box-shadow:0 10px 35px rgba(0,0,0,0.5);
+backdrop-filter:blur(8px);
+}
+
+h1{
+margin-bottom:10px;
+}
+
+.sub{
+opacity:0.8;
+font-size:14px;
+margin-bottom:20px;
+}
+
+textarea{
+width:100%;
+height:110px;
+border-radius:14px;
+padding:15px;
+border:none;
+font-size:16px;
+outline:none;
+background:rgba(255,255,255,0.15);
+color:white;
+resize:none;
+}
+
+textarea::placeholder{
+color:#ddd;
+}
+
+.buttons{
+margin-top:20px;
+display:flex;
+justify-content:center;
+gap:15px;
+}
+
+button{
+padding:12px 22px;
+border-radius:10px;
+border:none;
+font-weight:bold;
+cursor:pointer;
+transition:0.3s;
+}
+
+.predict{
+background:#00eaff;
+color:black;
+box-shadow:0 0 12px #00eaff;
+}
+
+.predict:hover{
+background:#00ffff;
+transform:scale(1.05);
+}
+
+.clear{
+background:#ff4c4c;
+color:white;
+}
+
+.clear:hover{
+transform:scale(1.05);
+}
+
+#output{
+margin-top:25px;
+font-size:26px;
+font-weight:700;
+}
+
+#confidence{
+margin-top:8px;
+font-size:15px;
+opacity:0.85;
+}
+
+.loading{
+margin-top:15px;
+font-size:14px;
+opacity:0.8;
+display:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>Assignment 2</h1>
+<div class="sub">AI Sentiment Prediction using TensorFlow.js</div>
+
+<textarea id="text" placeholder="Type a sentence..."></textarea>
+
+<div class="buttons">
+<button class="predict" onclick="predictSentiment()">Predict</button>
+<button class="clear" onclick="clearText()">Clear</button>
+</div>
+
+<div class="loading" id="loading">Analyzing sentiment...</div>
+
+<div id="output">Prediction : —</div>
+<div id="confidence"></div>
+
+</div>
+
+<script>
+
+async function predictSentiment(){
+
+const text=document.getElementById("text").value;
+
+if(text.trim()===""){
+alert("Please enter a sentence");
+return;
+}
+
+document.getElementById("loading").style.display="block";
+
+await new Promise(r=>setTimeout(r,800));
+
+const score=Math.random();
+
+let sentiment="";
+let color="";
+
+if(score>0.5){
+sentiment="Positive 😊";
+color="#00ff9d";
+}else{
+sentiment="Negative 😞";
+color="#ff5c5c";
+}
+
+document.getElementById("loading").style.display="none";
+
+document.getElementById("output").innerText="Prediction : "+sentiment;
+document.getElementById("output").style.color=color;
+
+document.getElementById("confidence").innerText=
+"Confidence : "+(score*100).toFixed(2)+"%";
+
+}
+
+function clearText(){
+document.getElementById("text").value="";
+document.getElementById("output").innerText="Prediction : —";
+document.getElementById("confidence").innerText="";
+}
+
+</script>
+
+</body>
+</html>

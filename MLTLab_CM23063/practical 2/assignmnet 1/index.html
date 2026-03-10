@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Assignment 1 - CNN Training</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f4f6f9;
+    text-align:center;
+    padding:40px;
+}
+
+.container{
+    background:white;
+    width:500px;
+    margin:auto;
+    padding:25px;
+    border-radius:10px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+
+h2{
+    margin-bottom:15px;
+}
+
+button{
+    padding:10px 20px;
+    font-size:16px;
+    border:none;
+    border-radius:6px;
+    background:#007bff;
+    color:white;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#0056b3;
+}
+
+#status{
+    margin-top:20px;
+    font-size:18px;
+}
+
+#log{
+    margin-top:15px;
+    text-align:left;
+    height:200px;
+    overflow-y:auto;
+    border:1px solid #ccc;
+    padding:10px;
+    background:#fafafa;
+    font-family:monospace;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Assignment 1: Train CNN for 5 Epochs</h2>
+
+<p>This program trains a Convolutional Neural Network using TensorFlow.js.</p>
+
+<button onclick="startTraining()">Start Training</button>
+
+<div id="status">Status: Waiting...</div>
+
+<div id="log"></div>
+
+</div>
+
+<script type="module" src="script.js"></script>
+
+</body>
+</html>

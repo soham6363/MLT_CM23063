@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MNIST Digit Prediction</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+<style>
+
+body{
+    font-family: Arial, sans-serif;
+    background:#f3f3f3;
+    padding:40px;
+    text-align:center;
+}
+
+h1{
+    font-size:32px;
+    margin-bottom:10px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+}
+
+p{
+    color:#555;
+}
+
+#container{
+    background:white;
+    width:420px;
+    margin:auto;
+    padding:25px;
+    border-radius:15px;
+    box-shadow:0px 4px 20px rgba(0,0,0,0.2);
+}
+
+#canvas{
+    border:3px solid black;
+    background:black;
+    border-radius:10px;
+    cursor:crosshair;
+}
+
+.buttons{
+    margin-top:15px;
+}
+
+button{
+    padding:12px 22px;
+    border:none;
+    font-size:16px;
+    border-radius:8px;
+    background:#4CAF50;
+    color:white;
+    cursor:pointer;
+    margin:5px;
+    transition:0.3s;
+}
+
+button:hover{
+    background:#45a049;
+}
+
+#clearBtn{
+    background:#f44336;
+}
+
+#clearBtn:hover{
+    background:#d73833;
+}
+
+#result{
+    margin-top:20px;
+    font-size:24px;
+    font-weight:bold;
+    color:#222;
+}
+
+footer{
+    margin-top:20px;
+    font-size:14px;
+    color:#777;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>MNIST Digit Predictor</h1>
+<p>Draw a digit (0–9) in the box below and click Predict.</p>
+
+<div id="container">
+
+<canvas id="canvas" width="280" height="280"></canvas>
+
+<div class="buttons">
+<button onclick="predict()">Predict Digit</button>
+<button id="clearBtn" onclick="clearCanvas()">Clear</button>
+</div>
+
+<div id="result">Predicted Digit: _</div>
+
+</div>
+
+<footer>
+Deep Learning Project – CNN using TensorFlow.js
+</footer>
+
+<script type="module" src="script.js"></script>
+
+</body>
+</html>
