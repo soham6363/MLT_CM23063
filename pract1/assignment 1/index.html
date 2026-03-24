@@ -3,9 +3,38 @@
 <head>
   <title>Linear Regression using TensorFlow.js</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body { font-family: Arial; background: #f0f0f0; text-align: center; padding: 40px; }
+    .container { background: white; padding: 25px; border-radius: 10px; width: 450px; margin: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { color: #333; }
+    .result { background: #e8f5e9; padding: 10px; margin: 8px 0; border-radius: 5px; font-size: 14px; text-align: left; }
+    #status { color: #888; font-size: 13px; margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h2>Open Console to View Output</h2>
+  <div class="container">
+    <h2>Linear Regression</h2>
+    <div class="result">🔹 Input X: [1, 2, 3, 4, 5]</div>
+    <div class="result">🔹 Actual Y: [3, 5, 7, 9, 11]</div>
+    <div id="output" class="result">⏳ Training model...</div>
+    <div id="status"></div>
+  </div>
   <script src="script.js"></script>
+  <script>
+    async function showOutput() {
+      const xs = tf.tensor1d([1, 2, 3, 4, 5]);
+      const ys = tf.tensor1d([3, 5, 7, 9, 11]);
+      const model = tf.sequential();
+      model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+      model.compile({ optimizer: tf.train.sgd(0.1), loss: 'meanSquaredError' });
+      await model.fit(xs, ys, { epochs: 150 });
+      const preds = model.predict(xs);
+      const vals = await preds.data();
+      document.getElementById('output').innerHTML = 
+        '🔹 Predicted Y: [' + Array.from(vals).map(v => v.toFixed(2)).join(', ') + ']';
+      document.getElementById('status').innerText = '✅ Training Complete (150 epochs)';
+    }
+    showOutput();
+  </script>
 </body>
 </html>

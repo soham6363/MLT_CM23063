@@ -1,11 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Linear Regression using TensorFlow.js</title>
+  <title>Linear Regression - Learning Rate</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body { font-family: Arial; background: #f0f0f0; text-align: center; padding: 40px; }
+    .container { background: white; padding: 25px; border-radius: 10px; width: 480px; margin: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { color: #333; }
+    .result { background: #e8f5e9; padding: 10px; margin: 8px 0; border-radius: 5px; font-size: 14px; text-align: left; }
+    .training { background: #fff3e0; padding: 10px; margin: 8px 0; border-radius: 5px; font-size: 13px; text-align: left; }
+  </style>
 </head>
 <body>
-  <h2>Open Console to View Output</h2>
-  <script src="script.js"></script>
+  <div class="container">
+    <h2>Linear Regression — Learning Rate Comparison</h2>
+    <div class="result">🔹 Input X: [1, 2, 3, 4, 5]</div>
+    <div class="result">🔹 Actual Y: [3, 5, 7, 9, 11]</div>
+    <div id="lr1" class="training">⏳ Training LR = 0.01...</div>
+    <div id="lr2" class="training">⏳ Training LR = 0.1...</div>
+    <div id="lr3" class="training">⏳ Training LR = 0.5...</div>
+  </div>
+  <script>
+    const xs = tf.tensor1d([1, 2, 3, 4, 5]);
+    const ys = tf.tensor1d([3, 5, 7, 9, 11]);
+
+    async function trainWithLR(lr, elId) {
+      const model = tf.sequential();
+      model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+      model.compile({ optimizer: tf.train.sgd(lr), loss: 'meanSquaredError' });
+      const history = await model.fit(xs, ys, { epochs: 50 });
+      const finalLoss = history.history.loss[49].toFixed(4);
+      const preds = model.predict(xs);
+      const vals = await preds.data();
+      document.getElementById(elId).innerHTML = 
+        `✅ LR = ${lr} | Final Loss: ${finalLoss}<br>Predicted: [${Array.from(vals).map(v => v.toFixed(2)).join(', ')}]`;
+    }
+
+    trainWithLR(0.01, 'lr1');
+    trainWithLR(0.1, 'lr2');
+    trainWithLR(0.5, 'lr3');
+  </script>
 </body>
 </html>

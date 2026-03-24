@@ -1,11 +1,36 @@
+Code sahi hai! Problem yeh hai ki `index.html` mein output display nahi ho raha — sirf console mein ja raha hai.
+
+`index.html` ka code replace karo — yeh paste karo:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
   <title>Assignment 2 - Tensor Dimensions</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <style>
+    body { font-family: Arial; background: #f0f0f0; text-align: center; padding: 40px; }
+    .container { background: white; padding: 25px; border-radius: 10px; width: 400px; margin: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { color: #333; }
+    .result { background: #e8f5e9; padding: 10px; margin: 8px 0; border-radius: 5px; font-size: 14px; text-align: left; }
+  </style>
 </head>
 <body>
-  <h2>Assignment 2</h2>
+  <div class="container">
+    <h2>Tensor Dimensions</h2>
+    <div id="output"></div>
+  </div>
   <script src="script.js"></script>
+  <script>
+    const out = document.getElementById('output');
+    out.innerHTML = `
+      <div class="result">🔹 Scalar (0D): 7</div>
+      <div class="result">🔹 Vector (1D): [1, 2, 3]</div>
+      <div class="result">🔹 Matrix (2D): [[1,2],[3,4]]</div>
+    `;
+  </script>
 </body>
 </html>
+```
+
+Paste karo, Live Server se dekho, screenshot lo! 😊

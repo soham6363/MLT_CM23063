@@ -4,79 +4,180 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MNIST Digit Recognition – CNN</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-
 <style>
-body{
+body {
     font-family: Arial, sans-serif;
-    background:#f4f6f9;
-    text-align:center;
-    padding:40px;
+    background: #f4f6f9;
+    text-align: center;
+    padding: 40px;
 }
-
-.container{
-    background:white;
-    width:400px;
-    margin:auto;
-    padding:25px;
-    border-radius:10px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+.container {
+    background: white;
+    width: 400px;
+    margin: auto;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-
-h2{
-    margin-bottom:20px;
+h2 { margin-bottom: 20px; }
+canvas {
+    border: 2px solid #333;
+    background: black;
+    cursor: crosshair;
 }
-
-canvas{
-    border:2px solid #333;
-    background:black;
-    cursor:crosshair;
+button {
+    margin: 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    background: #007bff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
 }
-
-button{
-    margin:10px;
-    padding:10px 20px;
-    border:none;
-    border-radius:6px;
-    background:#007bff;
-    color:white;
-    font-size:16px;
-    cursor:pointer;
-}
-
-button:hover{
-    background:#0056b3;
-}
-
-#result{
-    margin-top:15px;
-    font-size:22px;
-    font-weight:bold;
+button:hover { background: #0056b3; }
+#result {
+    margin-top: 15px;
+    font-size: 22px;
+    font-weight: bold;
 }
 </style>
 </head>
-
 <body>
 
 <div class="container">
-
-<h2>MNIST Digit Recognition (CNN)</h2>
-
-<p>Draw a digit (0–9)</p>
-
-<canvas id="canvas" width="280" height="280"></canvas>
-
-<br>
-
-<button onclick="predictDigit()">Predict</button>
-<button onclick="clearCanvas()">Clear</button>
-
-<div id="result">Prediction: -</div>
-
+  <h2>MNIST Digit Recognition (CNN)</h2>
+  <p>Draw a digit (0–9)</p>
+  <canvas id="canvas" width="280" height="280"></canvas>
+  <br>
+  <button onclick="predictDigit()">Predict</button>
+  <button onclick="clearCanvas()">Clear</button>
+  <div id="result">Prediction: -</div>
 </div>
 
-<script type="module" src="script.js"></script>
+<script>
+// ── MNISTData class (was mnist.js) ────────────────────────────────────────────
+class MNISTData {
+  constructor() {
+    this.IMAGE_SIZE = 28 * 28;
+    this.NUM_CLASSES = 10;
+    this.NUM_DATASET_ELEMENTS = 65000;
+    this.IMAGE_SPRITE_PATH =
+      "https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png";
+    this.LABELS_PATH =
+      "https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8";
+  }
+
+  async load() {
+    const [imgResponse, labelsResponse] = await Promise.all([
+      fetch(this.IMAGE_SPRITE_PATH),
+      fetch(this.LABELS_PATH)
+    ]);
+
+    const imgBlob = await imgResponse.blob();
+    const bitmap  = await createImageBitmap(imgBlob);
+
+    const canvas  = document.createElement("canvas");
+    canvas.width  = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx     = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0);
+
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    this.datasetImages = new Float32Array(this.NUM_DATASET_ELEMENTS * this.IMAGE_SIZE);
+    for (let i = 0; i < this.NUM_DATASET_ELEMENTS * this.IMAGE_SIZE; i++) {
+      this.datasetImages[i] = data[i * 4] / 255;
+    }
+
+    this.datasetLabels = new Uint8Array(await labelsResponse.arrayBuffer());
+  }
+
+  getTrainData() {
+    const trainCount = 55000;
+    const xs = tf.tensor2d(
+      this.datasetImages.slice(0, trainCount * this.IMAGE_SIZE),
+      [trainCount, this.IMAGE_SIZE]
+    ).reshape([trainCount, 28, 28, 1]);
+
+    const labels = tf.tensor2d(
+      this.datasetLabels.slice(0, trainCount * this.NUM_CLASSES),
+      [trainCount, this.NUM_CLASSES]
+    );
+    return { xs, labels };
+  }
+}
+
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+ctx.fillStyle = 'black';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+ctx.lineWidth   = 20;
+ctx.lineCap     = 'round';
+ctx.lineJoin    = 'round';
+ctx.strokeStyle = 'white';
+
+let drawing = false, lastX = 0, lastY = 0;
+
+canvas.onmousedown  = (e) => { drawing = true; lastX = e.offsetX; lastY = e.offsetY; };
+canvas.onmouseup    = () => { drawing = false; };
+canvas.onmouseleave = () => { drawing = false; };
+canvas.onmousemove  = (e) => {
+  if (!drawing) return;
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(e.offsetX, e.offsetY);
+  ctx.stroke();
+  lastX = e.offsetX;
+  lastY = e.offsetY;
+};
+
+// ── Model training ────────────────────────────────────────────────────────────
+let model;
+let isTrained = false;
+
+(async function () {
+  const data = new MNISTData();
+  await data.load();
+  const { xs, labels } = data.getTrainData();
+
+  model = tf.sequential();
+  model.add(tf.layers.conv2d({ inputShape: [28,28,1], filters: 16, kernelSize: 3, activation: 'relu' }));
+  model.add(tf.layers.maxPooling2d({ poolSize: 2 }));
+  model.add(tf.layers.flatten());
+  model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+  model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+
+  model.compile({ optimizer: 'adam', loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+
+  document.getElementById('result').innerText = 'Training... please wait';
+  await model.fit(xs, labels, { epochs: 5, batchSize: 128 });
+
+  isTrained = true;
+  document.getElementById('result').innerText = 'Ready! Draw a digit and click Predict.';
+  console.log("Training Done!");
+})();
+
+// ── Predict & Clear ───────────────────────────────────────────────────────────
+function predictDigit() {
+  if (!isTrained) { alert("Still training... please wait!"); return; }
+  const input = tf.browser.fromPixels(canvas, 1)
+    .resizeNearestNeighbor([28, 28])
+    .toFloat().div(255)
+    .reshape([1, 28, 28, 1]);
+  const digit = model.predict(input).argMax(1).dataSync()[0];
+  document.getElementById('result').innerText = 'Prediction: ' + digit;
+}
+
+function clearCanvas() {
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('result').innerText = 'Prediction: -';
+}
+</script>
 
 </body>
 </html>

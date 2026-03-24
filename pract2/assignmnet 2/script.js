@@ -48,6 +48,7 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 ctx.lineWidth = 20;
 ctx.lineCap = "round";
+ctx.strokeStyle = "white"; // ← FIX: white on black canvas
 
 let drawing = false;
 
@@ -61,7 +62,7 @@ canvas.onmousemove = (e) => {
     ctx.moveTo(e.offsetX, e.offsetY);
 };
 
-// CLEAN IMAGE → REMOVE EMPTY SPACE → CENTER THE DIGIT
+// PREPROCESS IMAGE
 function preprocessImage() {
     const img = tf.browser.fromPixels(canvas, 1)
         .resizeNearestNeighbor([28, 28])
@@ -73,14 +74,18 @@ function preprocessImage() {
 
 window.predict = async function () {
     if (!isTrained) {
-        alert("Training... wait 3 sec");
+        alert("Model still training... please wait!");
         return;
     }
 
     const input = preprocessImage();
     const output = model.predict(input);
-
     const digit = output.argMax(1).dataSync()[0];
 
     document.getElementById("result").innerText = "Predicted Digit: " + digit;
+};
+
+window.clearCanvas = function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    document.getElementById("result").innerText = "Predicted Digit: _";
 };
