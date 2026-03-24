@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 1 – MobileNet Image Classification</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+  :root {
+    --bg: #0a0a0f; --card: #13131a; --border: #2a2a3a;
+    --accent: #00e5ff; --accent2: #ff3cac; --text: #e8e8f0; --muted: #6b6b88;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+  body::before { content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 20%, rgba(0,229,255,0.05) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(255,60,172,0.05) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+  .container { position: relative; z-index: 1; width: 100%; max-width: 680px; }
+  header { text-align: center; margin-bottom: 40px; }
+  .badge { display: inline-block; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); border: 1px solid var(--accent); padding: 4px 12px; letter-spacing: 2px; margin-bottom: 16px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 800; line-height: 1.1; background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+  .subtitle { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 20px; position: relative; overflow: hidden; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 48px 24px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(0,229,255,0.02); }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,229,255,0.06); }
+  .upload-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+  .upload-zone p { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .btn { display: inline-block; padding: 10px 24px; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: 1px; cursor: pointer; border-radius: 6px; transition: all 0.2s ease; text-transform: uppercase; }
+  .btn:hover { background: var(--accent); color: var(--bg); }
+  #fileInput { display: none; }
+  .preview-area { display: none; text-align: center; }
+  .preview-area img { max-width: 100%; max-height: 320px; border-radius: 10px; border: 1px solid var(--border); object-fit: contain; }
+  .img-actions { margin-top: 16px; display: flex; gap: 10px; justify-content: center; }
+  .btn-classify { background: linear-gradient(135deg, var(--accent), #0088aa); color: var(--bg); border-color: transparent; font-weight: 700; padding: 12px 32px; }
+  .btn-classify:hover { background: linear-gradient(135deg, #33eeff, var(--accent)); color: var(--bg); }
+  .status { font-family: 'Space Mono', monospace; font-size: 12px; text-align: center; padding: 12px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .results { display: none; }
+  .results h3 { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }
+  .result-item { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; animation: slideIn 0.4s ease forwards; opacity: 0; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+  .result-rank { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent2); width: 20px; flex-shrink: 0; }
+  .result-info { flex: 1; }
+  .result-label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; text-transform: capitalize; }
+  .result-bar-wrap { background: var(--border); border-radius: 99px; height: 4px; overflow: hidden; }
+  .result-bar { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+  .result-pct { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--accent); width: 44px; text-align: right; flex-shrink: 0; }
+  .top-result { background: rgba(0,229,255,0.05); border: 1px solid rgba(0,229,255,0.2); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+  .top-result .emoji { font-size: 28px; }
+  .top-result .label { font-size: 20px; font-weight: 800; color: var(--accent); text-transform: capitalize; }
+  .top-result .conf { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">PRACTICAL 4 — ASSIGNMENT 1</div>
+    <h1>MobileNet Image<br>Classification</h1>
+    <p class="subtitle">TensorFlow.js · Pre-trained model · Browser inference</p>
+  </header>
+  <div class="card">
+    <div class="upload-zone" id="dropZone">
+      <span class="upload-icon">🖼️</span>
+      <p>Drag & drop an image here<br>or click to browse</p>
+      <button class="btn" onclick="document.getElementById('fileInput').click()">Choose Image</button>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+    <div class="preview-area" id="previewArea">
+      <img id="previewImg" src="" alt="Preview">
+      <div class="img-actions">
+        <button class="btn btn-classify" id="classifyBtn">🔍 Classify</button>
+        <button class="btn" id="resetBtn">↩ Reset</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="statusCard" style="display:none;">
+    <div class="status" id="statusMsg"><span class="spinner"></span> Loading MobileNet model...</div>
+  </div>
+  <div class="card results" id="resultsCard">
+    <div class="top-result" id="topResult"></div>
+    <h3>Top 5 Predictions</h3>
+    <div id="predList"></div>
+  </div>
+</div>
+<script>
+let model = null;
+async function loadModel() {
+  if (model) return model;
+  showStatus('Loading MobileNet model...');
+  model = await mobilenet.load();
+  hideStatus();
+  return model;
+}
+function showStatus(msg) { document.getElementById('statusCard').style.display = 'block'; document.getElementById('statusMsg').innerHTML = `<span class="spinner"></span> ${msg}`; }
+function hideStatus() { document.getElementById('statusCard').style.display = 'none'; }
+document.getElementById('fileInput').addEventListener('change', e => { const file = e.target.files[0]; if (file) loadPreview(file); });
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); const file = e.dataTransfer.files[0]; if (file && file.type.startsWith('image/')) loadPreview(file); });
+function loadPreview(file) {
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('previewImg').src = e.target.result; document.getElementById('dropZone').style.display = 'none'; document.getElementById('previewArea').style.display = 'block'; document.getElementById('resultsCard').style.display = 'none'; };
+  reader.readAsDataURL(file);
+  loadModel();
+}
+document.getElementById('resetBtn').addEventListener('click', () => { document.getElementById('dropZone').style.display = 'block'; document.getElementById('previewArea').style.display = 'none'; document.getElementById('resultsCard').style.display = 'none'; document.getElementById('fileInput').value = ''; });
+document.getElementById('classifyBtn').addEventListener('click', async () => {
+  const img = document.getElementById('previewImg');
+  showStatus('Classifying image...');
+  document.getElementById('resultsCard').style.display = 'none';
+  try { if (!model) model = await loadModel(); const predictions = await model.classify(img, 5); showResults(predictions); }
+  catch (err) { showStatus('Error: ' + err.message); }
+});
+function showResults(predictions) {
+  hideStatus();
+  const top = predictions[0];
+  document.getElementById('topResult').innerHTML = `<span class="emoji">🎯</span><div><div class="label">${top.className.split(',')[0]}</div><div class="conf">Confidence: ${(top.probability * 100).toFixed(1)}%</div></div>`;
+  const list = document.getElementById('predList');
+  list.innerHTML = '';
+  predictions.forEach((p, i) => {
+    const pct = (p.probability * 100).toFixed(1);
+    const div = document.createElement('div');
+    div.className = 'result-item';
+    div.style.animationDelay = `${i * 0.1}s`;
+    div.innerHTML = `<div class="result-rank">#${i+1}</div><div class="result-info"><div class="result-label">${p.className.split(',')[0]}</div><div class="result-bar-wrap"><div class="result-bar" style="width:0%" data-w="${pct}%"></div></div></div><div class="result-pct">${pct}%</div>`;
+    list.appendChild(div);
+  });
+  document.getElementById('resultsCard').style.display = 'block';
+  setTimeout(() => { document.querySelectorAll('.result-bar').forEach(b => { b.style.width = b.dataset.w; }); }, 100);
+}
+loadModel();
+</script>
+</body>
+</html>

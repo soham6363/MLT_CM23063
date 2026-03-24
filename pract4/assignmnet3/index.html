@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 3 – Batch Image Classification</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,400;0,700;0,900;1,400&display=swap');
+  :root { --bg: #1c1410; --card: #251d18; --border: #3d3028; --accent: #f5a623; --accent2: #e05c2e; --text: #f0e8d8; --muted: #8a7060; --green: #4caf82; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Fraunces', serif; min-height: 100vh; padding: 48px 20px; }
+  .container { max-width: 1000px; margin: 0 auto; position: relative; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; flex-wrap: wrap; gap: 20px; }
+  .badge { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 2px; margin-bottom: 8px; }
+  h1 { font-size: clamp(32px, 5vw, 52px); font-weight: 900; line-height: 1.0; color: var(--text); }
+  h1 em { font-style: italic; color: var(--accent); }
+  .counter { font-size: 48px; font-weight: 900; color: var(--accent); line-height: 1; }
+  .counter-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+  .toolbar { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; align-items: center; }
+  .btn { padding: 10px 22px; border-radius: 6px; font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.15s; border: none; display: flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: #e09510; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; border: 1px solid var(--accent2); color: var(--accent2); }
+  .btn-danger:hover { background: var(--accent2); color: var(--bg); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #fileInput { display: none; }
+  .status { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .spinner { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .drop-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 28px; transition: all 0.3s; cursor: pointer; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(245,166,35,0.05); }
+  .drop-zone p { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .img-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; animation: fadeUp 0.4s ease forwards; opacity: 0; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .img-wrap { width: 100%; aspect-ratio: 4/3; overflow: hidden; background: #000; position: relative; }
+  .img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .img-overlay { position: absolute; top: 8px; right: 8px; }
+  .status-pill { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 3px 8px; border-radius: 99px; background: rgba(0,0,0,0.7); color: #fff; }
+  .status-pill.done { background: var(--green); }
+  .status-pill.processing { background: var(--accent); color: var(--bg); }
+  .img-body { padding: 14px; }
+  .img-name { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pred-top { font-size: 17px; font-weight: 700; color: var(--text); text-transform: capitalize; margin-bottom: 2px; min-height: 22px; }
+  .pred-conf-text { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); margin-bottom: 10px; min-height: 14px; }
+  .mini-bars { display: flex; flex-direction: column; gap: 5px; }
+  .mini-bar-row { display: flex; align-items: center; gap: 6px; }
+  .mini-label { font-size: 10px; color: var(--muted); width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; text-transform: capitalize; }
+  .mini-bar-wrap { flex: 1; background: var(--border); border-radius: 99px; height: 4px; overflow: hidden; }
+  .mini-bar { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.6s ease; }
+  .mini-pct { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); width: 28px; text-align: right; flex-shrink: 0; }
+  .waiting { display: flex; align-items: center; justify-content: center; height: 80px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .summary-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: none; gap: 32px; flex-wrap: wrap; }
+  .summary-stat .num { font-size: 32px; font-weight: 900; color: var(--accent); }
+  .summary-stat .lbl { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+  .progress-wrap { background: var(--border); border-radius: 99px; height: 4px; margin-bottom: 24px; overflow: hidden; display: none; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width 0.3s ease; }
+  .remove-btn { position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; background: rgba(0,0,0,0.7); border: none; color: #fff; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .remove-btn:hover { background: var(--accent2); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <div class="badge">PRACTICAL 4 — ASSIGNMENT 3</div>
+      <h1>Batch <em>Image</em><br>Classification</h1>
+    </div>
+    <div style="text-align:right;">
+      <div class="counter" id="imgCounter">0</div>
+      <div class="counter-label">IMAGES LOADED</div>
+    </div>
+  </header>
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">＋ Add Images</button>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+    <button class="btn btn-outline" id="classifyAllBtn" disabled>🔍 Classify All</button>
+    <button class="btn btn-danger" id="clearBtn" disabled>🗑 Clear All</button>
+    <div class="status" id="statusEl">Model loading...</div>
+  </div>
+  <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="summary-bar" id="summaryBar">
+    <div class="summary-stat"><div class="num" id="sDone">0</div><div class="lbl">CLASSIFIED</div></div>
+    <div class="summary-stat"><div class="num" id="sAvg">—</div><div class="lbl">AVG CONFIDENCE</div></div>
+    <div class="summary-stat"><div class="num" id="sTop">—</div><div class="lbl">TOP CLASS</div></div>
+  </div>
+  <div class="drop-zone" id="dropZone"><div style="font-size:40px">🗂️</div><p>Drop multiple images here, or use the button above</p></div>
+  <div class="grid" id="imageGrid"></div>
+</div>
+<script>
+let model = null, images = [];
+async function loadModel() { setStatus('Loading MobileNet...', true); model = await mobilenet.load(); setStatus('Ready — add images'); }
+function setStatus(msg, loading=false) { document.getElementById('statusEl').innerHTML = loading ? `<div class="spinner"></div> ${msg}` : msg; }
+document.getElementById('fileInput').addEventListener('change', e => { addFiles(Array.from(e.target.files)); e.target.value = ''; });
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))); });
+dz.addEventListener('click', () => document.getElementById('fileInput').click());
+function addFiles(files) {
+  files.forEach(file => {
+    const id = Date.now() + Math.random();
+    const reader = new FileReader();
+    reader.onload = e => { images.push({ id, src: e.target.result, name: file.name, predictions: null }); renderGrid(); updateCounter(); };
+    reader.readAsDataURL(file);
+  });
+}
+function removeImage(id) { images = images.filter(img => img.id !== id); renderGrid(); updateCounter(); }
+function updateCounter() { document.getElementById('imgCounter').textContent = images.length; document.getElementById('classifyAllBtn').disabled = images.length === 0; document.getElementById('clearBtn').disabled = images.length === 0; }
+function renderGrid() {
+  const grid = document.getElementById('imageGrid'); grid.innerHTML = '';
+  images.forEach((img, i) => {
+    const card = document.createElement('div'); card.className = 'img-card'; card.style.animationDelay = `${(i%6)*0.05}s`;
+    let bodyContent = `<div class="waiting"><div class="spinner"></div>&nbsp;Waiting...</div>`;
+    let pillClass = '', pillText = 'PENDING';
+    if (img.predictions) {
+      const top = img.predictions[0]; const pct = (top.probability*100).toFixed(1);
+      pillClass = 'done'; pillText = 'DONE';
+      const bars = img.predictions.slice(0,3).map(p => `<div class="mini-bar-row"><div class="mini-label">${p.className.split(',')[0]}</div><div class="mini-bar-wrap"><div class="mini-bar" style="width:${(p.probability*100).toFixed(1)}%"></div></div><div class="mini-pct">${(p.probability*100).toFixed(0)}%</div></div>`).join('');
+      bodyContent = `<div class="pred-top">${top.className.split(',')[0]}</div><div class="pred-conf-text">${pct}% confidence</div><div class="mini-bars">${bars}</div>`;
+    } else if (img.processing) { pillClass = 'processing'; pillText = 'PROCESSING'; bodyContent = `<div class="waiting"><div class="spinner"></div>&nbsp;Classifying...</div>`; }
+    card.innerHTML = `<div class="img-wrap"><img src="${img.src}" alt="${img.name}"><button class="remove-btn" onclick="removeImage(${img.id})">×</button><div class="img-overlay"><div class="status-pill ${pillClass}">${pillText}</div></div></div><div class="img-body"><div class="img-name">${img.name}</div>${bodyContent}</div>`;
+    grid.appendChild(card);
+  });
+}
+document.getElementById('classifyAllBtn').addEventListener('click', async () => {
+  if (!model) return;
+  const total = images.length;
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('classifyAllBtn').disabled = true;
+  for (let i = 0; i < images.length; i++) {
+    images[i].processing = true; images[i].predictions = null; renderGrid();
+    setStatus(`Classifying ${i+1}/${total}...`, true);
+    document.getElementById('progressBar').style.width = `${(i/total)*100}%`;
+    const imgEl = new Image(); imgEl.src = images[i].src;
+    await new Promise(r => imgEl.complete ? r() : imgEl.onload = r);
+    images[i].predictions = await model.classify(imgEl, 3);
+    images[i].processing = false; renderGrid();
+  }
+  document.getElementById('progressBar').style.width = '100%';
+  setStatus(`All ${total} images classified!`);
+  document.getElementById('classifyAllBtn').disabled = false;
+  updateSummary();
+});
+function updateSummary() {
+  const done = images.filter(i => i.predictions); if (!done.length) return;
+  document.getElementById('summaryBar').style.display = 'flex';
+  document.getElementById('sDone').textContent = done.length;
+  const avgConf = done.reduce((sum,i) => sum + i.predictions[0].probability, 0) / done.length;
+  document.getElementById('sAvg').textContent = (avgConf*100).toFixed(0)+'%';
+  const classCount = {}; done.forEach(i => { const c = i.predictions[0].className.split(',')[0]; classCount[c] = (classCount[c]||0)+1; });
+  const topClass = Object.entries(classCount).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('sTop').textContent = topClass[0].substring(0,10);
+}
+document.getElementById('clearBtn').addEventListener('click', () => { images = []; renderGrid(); updateCounter(); document.getElementById('summaryBar').style.display = 'none'; document.getElementById('progressWrap').style.display = 'none'; setStatus('Ready — add images'); });
+loadModel();
+</script>
+</body>
+</html>

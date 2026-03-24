@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 2 – Real-time Webcam Classification</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Outfit:wght@400;600;800&display=swap');
+  :root { --bg: #f5f0e8; --card: #ffffff; --border: #e0d8cc; --accent: #1a1a2e; --green: #00b86b; --red: #ff4444; --text: #1a1a2e; --muted: #8a8070; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+  .container { position: relative; z-index: 1; width: 100%; max-width: 720px; }
+  header { margin-bottom: 32px; }
+  .badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; letter-spacing: 2px; margin-bottom: 12px; background: var(--card); }
+  h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 800; line-height: 1.05; color: var(--text); margin-bottom: 8px; }
+  h1 span { color: var(--green); }
+  .subtitle { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 600px) { .main-grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; position: relative; }
+  .cam-card { grid-column: 1 / -1; padding: 0; overflow: hidden; border-radius: 16px; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+  #webcam { width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1); }
+  .cam-placeholder { text-align: center; color: #555; padding: 40px; }
+  .cam-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+  .cam-placeholder p { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  .cam-overlay { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+  .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 99px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #fff; letter-spacing: 1px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  .live-dot.active { background: var(--green); animation: blink 1s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .fps-badge { background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 99px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #fff; }
+  .controls { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { padding: 12px 24px; border-radius: 8px; border: 2px solid var(--text); background: transparent; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; }
+  .btn:hover { background: var(--text); color: var(--bg); }
+  .btn-start { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn-start:hover { background: #009955; border-color: #009955; color: #fff; }
+  .btn-stop { background: var(--red); border-color: var(--red); color: #fff; display: none; }
+  .btn-stop:hover { background: #cc0000; border-color: #cc0000; color: #fff; }
+  .status-bar { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); padding: 10px 0; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .top-pred { margin-bottom: 20px; }
+  .top-label { font-size: 28px; font-weight: 800; color: var(--text); text-transform: capitalize; min-height: 36px; transition: all 0.2s ease; }
+  .top-conf { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .pred-list { display: flex; flex-direction: column; gap: 10px; }
+  .pred-row { display: flex; align-items: center; gap: 10px; }
+  .pred-name { font-size: 13px; font-weight: 600; text-transform: capitalize; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pred-bar-wrap { width: 80px; background: var(--border); border-radius: 99px; height: 6px; overflow: hidden; flex-shrink: 0; }
+  .pred-bar { height: 100%; border-radius: 99px; background: var(--green); transition: width 0.3s ease; }
+  .pred-pct { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); width: 36px; text-align: right; flex-shrink: 0; }
+  .history-card { grid-column: 1 / -1; }
+  .history-title { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .history-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; }
+  .history-tag { background: var(--bg); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; font-size: 12px; font-family: 'IBM Plex Mono', monospace; animation: popIn 0.3s ease; }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">PRACTICAL 4 — ASSIGNMENT 2</div>
+    <h1>Real-time <span>Webcam</span><br>Classification</h1>
+    <p class="subtitle">Live camera feed · MobileNet · Continuous inference</p>
+  </header>
+  <div class="main-grid">
+    <div class="cam-card card" style="position:relative;">
+      <div class="cam-placeholder" id="camPlaceholder"><div class="icon">📷</div><p>Camera not started</p></div>
+      <video id="webcam" autoplay playsinline muted></video>
+      <div class="cam-overlay" id="camOverlay" style="display:none;">
+        <div class="live-badge"><div class="live-dot" id="liveDot"></div><span id="liveText">IDLE</span></div>
+        <div class="fps-badge" id="fpsBadge">0 FPS</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="status-bar" id="statusBar">Ready to start</div>
+      <div class="controls">
+        <button class="btn btn-start" id="startBtn">▶ Start Camera</button>
+        <button class="btn btn-stop" id="stopBtn">⏹ Stop</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="top-pred">
+        <div class="top-label" id="topLabel">—</div>
+        <div class="top-conf" id="topConf">Waiting for predictions...</div>
+      </div>
+      <div class="pred-list" id="predList"></div>
+    </div>
+    <div class="card history-card">
+      <div class="history-title">Detection History</div>
+      <div class="history-list" id="historyList"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">No detections yet</span></div>
+    </div>
+  </div>
+</div>
+<script>
+let model = null, stream = null, running = false, frameCount = 0, lastFpsTime = Date.now(), history = [];
+async function loadModel() { setStatus('Loading MobileNet...', true); model = await mobilenet.load(); setStatus('Model ready — click Start Camera'); }
+function setStatus(msg, loading=false) { document.getElementById('statusBar').innerHTML = loading ? `<div class="spinner"></div> ${msg}` : msg; }
+document.getElementById('startBtn').addEventListener('click', async () => {
+  try {
+    setStatus('Requesting camera...', true);
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    const video = document.getElementById('webcam');
+    video.srcObject = stream; video.style.display = 'block';
+    document.getElementById('camPlaceholder').style.display = 'none';
+    document.getElementById('camOverlay').style.display = 'flex';
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'flex';
+    video.onloadeddata = async () => {
+      if (!model) { setStatus('Loading MobileNet...', true); model = await mobilenet.load(); }
+      setStatus('Running — classifying live');
+      document.getElementById('liveDot').classList.add('active');
+      document.getElementById('liveText').textContent = 'LIVE';
+      running = true; predict();
+    };
+  } catch(err) { setStatus('Camera error: ' + err.message); }
+});
+document.getElementById('stopBtn').addEventListener('click', () => {
+  running = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  document.getElementById('webcam').style.display = 'none';
+  document.getElementById('camPlaceholder').style.display = 'block';
+  document.getElementById('camOverlay').style.display = 'none';
+  document.getElementById('startBtn').style.display = 'flex';
+  document.getElementById('stopBtn').style.display = 'none';
+  document.getElementById('liveDot').classList.remove('active');
+  document.getElementById('liveText').textContent = 'IDLE';
+  setStatus('Stopped');
+});
+async function predict() {
+  if (!running || !model) return;
+  const video = document.getElementById('webcam');
+  if (video.readyState === 4) { const predictions = await model.classify(video, 3); updatePredictions(predictions); updateFPS(); }
+  requestAnimationFrame(predict);
+}
+function updatePredictions(predictions) {
+  const top = predictions[0];
+  const label = top.className.split(',')[0];
+  document.getElementById('topLabel').textContent = label;
+  document.getElementById('topConf').textContent = `Confidence: ${(top.probability * 100).toFixed(1)}%`;
+  const list = document.getElementById('predList');
+  list.innerHTML = '';
+  predictions.forEach(p => {
+    const pct = (p.probability * 100).toFixed(1);
+    const div = document.createElement('div');
+    div.className = 'pred-row';
+    div.innerHTML = `<div class="pred-name">${p.className.split(',')[0]}</div><div class="pred-bar-wrap"><div class="pred-bar" style="width:${pct}%"></div></div><div class="pred-pct">${pct}%</div>`;
+    list.appendChild(div);
+  });
+  if (!history.length || history[history.length-1] !== label) { history.push(label); if (history.length > 15) history.shift(); renderHistory(); }
+}
+function renderHistory() {
+  const el = document.getElementById('historyList'); el.innerHTML = '';
+  history.slice().reverse().forEach(h => { const tag = document.createElement('span'); tag.className = 'history-tag'; tag.textContent = h; el.appendChild(tag); });
+}
+function updateFPS() { frameCount++; const now = Date.now(); if (now - lastFpsTime >= 1000) { document.getElementById('fpsBadge').textContent = `${frameCount} FPS`; frameCount = 0; lastFpsTime = now; } }
+loadModel();
+</script>
+</body>
+</html>
