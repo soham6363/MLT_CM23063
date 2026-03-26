@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Top 5 Predictions</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <style>
+    body { font-family: Arial; background: #f0f0f0; text-align: center; padding: 40px; }
+    .container { background: white; padding: 25px; border-radius: 10px; width: 520px; margin: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { color: #333; }
+    video { width: 400px; border-radius: 10px; margin: 15px 0; }
+    button { padding: 10px 25px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin: 10px; }
+    .result-box { background: #f9f9f9; border-radius: 8px; padding: 15px; margin-top: 15px; text-align: left; }
+    .result-item { margin: 8px 0; }
+    .label { font-size: 13px; color: #333; margin-bottom: 3px; }
+    .bar-bg { background: #ddd; border-radius: 5px; height: 18px; width: 100%; }
+    .bar-fill { height: 18px; border-radius: 5px; background: linear-gradient(to right, #4CAF50, #81C784); transition: width 0.3s ease; display: flex; align-items: center; padding-left: 6px; }
+    .bar-text { font-size: 12px; color: white; font-weight: bold; }
+    #status { color: #888; font-size: 13px; margin-top: 10px; }
+    .rank { font-weight: bold; color: #4CAF50; margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🏆 Top 5 Object Predictions</h2>
+    <video id="webcam" autoplay playsinline></video>
+    <br>
+    <button onclick="startWebcam()">📷 Start Webcam</button>
+    <button onclick="classify()">🔍 Classify</button>
+    <div id="status">⏳ Loading MobileNet...</div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    let model;
+
+    async function loadModel() {
+      model = await mobilenet.load();
+      document.getElementById('status').innerText = '✅ Model Ready! Start webcam and click Classify.';
+    }
+
+    async function startWebcam() {
+      const video = document.getElementById('webcam');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+    }
+
+    async function classify() {
+      const video = document.getElementById('webcam');
+      // topk: 5 — top 5 predictions maangna
+      const predictions = await model.classify(video, 5);
+
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<div class="result-box">';
+
+      predictions.forEach((p, i) => {
+        const percent = (p.probability * 100).toFixed(2);
+        const barColor = i === 0
+          ? 'linear-gradient(to right, #FF9800, #FFB74D)'  // top prediction = orange highlight
+          : 'linear-gradient(to right, #4CAF50, #81C784)';
+
+        resultsDiv.innerHTML += `
+          <div class="result-item">
+            <div class="label">
+              <span class="rank">#${i + 1}</span>${p.className}
+            </div>
+            <div class="bar-bg">
+              <div class="bar-fill" style="width: ${percent}%; background: ${barColor};">
+                <span class="bar-text">${percent}%</span>
+              </div>
+            </div>
+          </div>`;
+      });
+
+      resultsDiv.innerHTML += '</div>';
+    }
+
+    loadModel();
+  </script>
+</body>
+</html>

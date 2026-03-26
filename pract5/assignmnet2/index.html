@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Webcam Object Detection</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <style>
+    body { font-family: Arial; background: #f0f0f0; text-align: center; padding: 40px; }
+    .container { background: white; padding: 25px; border-radius: 10px; width: 500px; margin: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { color: #333; }
+    video { width: 400px; border-radius: 10px; margin: 15px 0; }
+    button { padding: 10px 25px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin: 10px; }
+    .result { background: #e8f5e9; padding: 10px; margin: 8px 0; border-radius: 5px; font-size: 14px; text-align: left; }
+    #status { color: #888; font-size: 13px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📷 Webcam Object Detection</h2>
+    <video id="webcam" autoplay playsinline></video>
+    <br>
+    <button onclick="startWebcam()">Start Webcam</button>
+    <button onclick="classify()">Classify</button>
+    <div id="status">⏳ Loading MobileNet...</div>
+    <div id="results"></div>
+  </div>
+  <script>
+    let model;
+    async function loadModel() {
+      model = await mobilenet.load();
+      document.getElementById('status').innerText = '✅ Model Ready! Start webcam and click Classify.';
+    }
+
+    async function startWebcam() {
+      const video = document.getElementById('webcam');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+    }
+
+    async function classify() {
+      const video = document.getElementById('webcam');
+      const predictions = await model.classify(video);
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+      predictions.forEach(p => {
+        resultsDiv.innerHTML += `<div class="result">🔹 ${p.className} — ${(p.probability * 100).toFixed(2)}%</div>`;
+      });
+    }
+
+    loadModel();
+  </script>
+</body>
+</html>
