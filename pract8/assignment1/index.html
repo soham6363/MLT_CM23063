@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Assignment 1</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+
+  <style>
+    body { margin:0; font-family:'Segoe UI'; background:linear-gradient(135deg,#5f9cff,#8e44ad); display:flex; justify-content:center; align-items:center; height:100vh; }
+    .card { background:rgba(255,255,255,0.1); padding:25px; border-radius:20px; width:380px; color:white; text-align:center; }
+    video { border-radius:10px; }
+    button { width:100%; padding:10px; margin-top:10px; border:none; border-radius:10px; cursor:pointer; background:#00ffae; color:black; }
+    .result { margin-top:10px; font-weight:bold; }
+  </style>
+</head>
+
+<body>
+<div class="card">
+  <h2>Assignment 1</h2>
+
+  <video id="webcam" width="300" autoplay></video>
+
+  <button onclick="predict()">Predict</button>
+
+  <div class="result" id="result">Prediction: --</div>
+</div>
+
+<script>
+let net;
+const webcam = document.getElementById("webcam");
+
+async function setup(){
+  net = await mobilenet.load();
+  const stream = await navigator.mediaDevices.getUserMedia({video:true});
+  webcam.srcObject = stream;
+}
+
+async function predict(){
+  const img = tf.browser.fromPixels(webcam);
+  const predictions = await net.classify(img);
+
+  document.getElementById("result").innerText =
+    "Prediction: " + predictions[0].className +
+    " (" + (predictions[0].probability*100).toFixed(2) + "%)";
+}
+
+setup();
+</script>
+</body>
+</html>

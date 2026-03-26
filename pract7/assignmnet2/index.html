@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Assignment 2</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+  <style>
+    body { margin:0; font-family:sans-serif; background:linear-gradient(135deg,#5f9cff,#8e44ad); display:flex; justify-content:center; align-items:center; height:100vh; }
+    .card { background:rgba(255,255,255,0.1); backdrop-filter:blur(10px); padding:25px; border-radius:15px; width:350px; color:white; text-align:center; }
+    input { width:40%; padding:8px; margin:5px; text-align:center; }
+    button { width:100%; padding:10px; margin-top:10px; border:none; border-radius:8px; cursor:pointer; }
+    .load { background:#f39c12; color:white; }
+    .predict { background:#3498db; color:white; }
+  </style>
+</head>
+
+<body>
+<div class="card">
+  <h3>Assignment 2</h3>
+  <p>Load & Predict</p>
+
+  <button class="load" onclick="load()">Load Model</button>
+
+  <input id="x1" placeholder="0/1">
+  <input id="x2" placeholder="0/1">
+
+  <button class="predict" onclick="predict()">Predict</button>
+
+  <h3 id="res">Result: --</h3>
+</div>
+
+<script>
+let model;
+
+async function load(){
+  model=await tf.loadLayersModel('localstorage://xor-model');
+  alert("Model Loaded");
+}
+
+async function predict(){
+  let a=Number(x1.value), b=Number(x2.value);
+  let out=model.predict(tf.tensor2d([[a,b]]));
+  let res=await out.data();
+  document.getElementById("res").innerText="Result: "+res[0].toFixed(3);
+}
+</script>
+</body>
+</html>
