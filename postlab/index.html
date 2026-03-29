@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Language Translator</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 25px;
+    text-align: center;
+  }
+  .main-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .video-section { position: relative; }
+  video {
+    border-radius: 15px;
+    width: 420px;
+    height: 320px;
+    display: block;
+  }
+  canvas {
+    position: absolute;
+    top: 0; left: 0;
+    border-radius: 15px;
+    width: 420px;
+    height: 320px;
+  }
+  .info-section {
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .detected-box {
+    background: rgba(255,255,255,0.07);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .detected-label {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .detected-letter {
+    font-size: 5rem;
+    font-weight: bold;
+    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+  .confidence-bar-bg {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    height: 8px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .confidence-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    border-radius: 10px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+  .confidence-text {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin-top: 5px;
+  }
+  .timer-bar-bg {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    height: 5px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .timer-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #fbc2eb, #a18cd1);
+    border-radius: 10px;
+    width: 0%;
+    transition: width 1.5s linear;
+  }
+  .timer-text {
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 4px;
+  }
+  .sentence-box {
+    background: rgba(255,255,255,0.07);
+    border-radius: 15px;
+    padding: 15px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .sentence-label {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .sentence-text {
+    font-size: 1.4rem;
+    font-weight: bold;
+    min-height: 40px;
+    word-break: break-all;
+    color: white;
+  }
+  .btn-row {
+    display: flex;
+    gap: 10px;
+  }
+  button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+  .btn-space {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .btn-clear {
+    background: rgba(255,80,80,0.3);
+    color: white;
+    border: 1px solid rgba(255,80,80,0.3);
+  }
+  button:hover { transform: scale(1.05); }
+  .status {
+    font-size: 0.8rem;
+    color: #a18cd1;
+    text-align: center;
+  }
+  .gestures-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .gesture-chip {
+    background: rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 6px;
+    text-align: center;
+    font-size: 0.85rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
+  }
+  .gesture-chip.active {
+    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    color: #1a1a2e;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>🤟 Sign Language Translator</h1>
+<p class="subtitle">Hold a hand gesture for 1.5 seconds — AI will auto-type the letter!</p>
+
+<div class="main-card">
+  <div class="video-section">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="info-section">
+    <div class="detected-box">
+      <div class="detected-label">Detected Sign</div>
+      <div class="detected-letter" id="detectedLetter">?</div>
+      <div class="confidence-bar-bg">
+        <div class="confidence-bar" id="confBar"></div>
+      </div>
+      <div class="confidence-text" id="confText">Confidence: —</div>
+      <div class="timer-bar-bg">
+        <div class="timer-bar" id="timerBar"></div>
+      </div>
+      <div class="timer-text" id="timerText">Hold gesture to type...</div>
+    </div>
+
+    <div class="sentence-box">
+      <div class="sentence-label">Sentence</div>
+      <div class="sentence-text" id="sentenceText">_</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-space" onclick="addSpace()">␣ Space</button>
+      <button class="btn-clear" onclick="clearSentence()">🗑️ Clear</button>
+    </div>
+
+    <div class="status" id="status">⏳ Loading model...</div>
+
+    <div>
+      <div class="detected-label" style="font-size:0.75rem;color:#aaa;margin-bottom:8px;">Supported Signs</div>
+      <div class="gestures-grid" id="gestureGrid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const signs = ['👍','👎','✌️','👌','🤙','☝️','✊','🖐️','🤘','🤟'];
+const signLetters = ['A','B','C','D','E','F','G','H','I','J'];
+
+// Build gesture grid
+const grid = document.getElementById('gestureGrid');
+signLetters.forEach((l, i) => {
+  const chip = document.createElement('div');
+  chip.className = 'gesture-chip';
+  chip.id = 'chip-' + l;
+  chip.innerHTML = `${signs[i]}<br><small>${l}</small>`;
+  grid.appendChild(chip);
+});
+
+let sentence = '';
+let model;
+let lastLetter = '';
+let letterTimer = null;
+let timerInterval = null;
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+async function setup() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 420, height: 320 } });
+  video.srcObject = stream;
+  video.onloadedmetadata = () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  };
+  document.getElementById('status').innerText = '⏳ Loading HandPose model...';
+  model = await handpose.load();
+  document.getElementById('status').innerText = '✅ Ready! Show your hand!';
+  detect();
+}
+
+async function detect() {
+  const predictions = await model.estimateHands(video);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (predictions.length > 0) {
+    const hand = predictions[0];
+    drawHand(hand.landmarks);
+    const gesture = detectGesture(hand.landmarks);
+
+    if (gesture) {
+      document.getElementById('detectedLetter').innerText = gesture.letter;
+      document.getElementById('confBar').style.width = gesture.confidence + '%';
+      document.getElementById('confText').innerText = `Confidence: ${gesture.confidence}%`;
+
+      // Highlight chip
+      signLetters.forEach(l => document.getElementById('chip-' + l).classList.remove('active'));
+      document.getElementById('chip-' + gesture.letter).classList.add('active');
+
+      // Auto type after holding 1.5 seconds
+      if (gesture.letter !== lastLetter) {
+        lastLetter = gesture.letter;
+        clearTimeout(letterTimer);
+        clearInterval(timerInterval);
+
+        // Animate timer bar
+        const timerBar = document.getElementById('timerBar');
+        const timerText = document.getElementById('timerText');
+        timerBar.style.transition = 'none';
+        timerBar.style.width = '0%';
+        timerText.innerText = 'Hold gesture to type...';
+
+        setTimeout(() => {
+          timerBar.style.transition = 'width 1.5s linear';
+          timerBar.style.width = '100%';
+        }, 50);
+
+        letterTimer = setTimeout(() => {
+          sentence += gesture.letter;
+          document.getElementById('sentenceText').innerText = sentence || '_';
+          timerText.innerText = `✅ "${gesture.letter}" added!`;
+          timerBar.style.width = '0%';
+          lastLetter = '';
+        }, 1500);
+      }
+    } else {
+      resetDetection();
+    }
+  } else {
+    resetDetection();
+    document.getElementById('detectedLetter').innerText = '?';
+    document.getElementById('confBar').style.width = '0%';
+    document.getElementById('confText').innerText = 'No hand detected';
+  }
+
+  requestAnimationFrame(detect);
+}
+
+function resetDetection() {
+  signLetters.forEach(l => document.getElementById('chip-' + l).classList.remove('active'));
+  clearTimeout(letterTimer);
+  clearInterval(timerInterval);
+  const timerBar = document.getElementById('timerBar');
+  timerBar.style.transition = 'none';
+  timerBar.style.width = '0%';
+  document.getElementById('timerText').innerText = 'Hold gesture to type...';
+  lastLetter = '';
+}
+
+function drawHand(landmarks) {
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [0,9],[9,10],[10,11],[11,12],
+    [0,13],[13,14],[14,15],[15,16],
+    [0,17],[17,18],[18,19],[19,20],
+    [5,9],[9,13],[13,17]
+  ];
+  ctx.strokeStyle = 'rgba(161,140,209,0.7)';
+  ctx.lineWidth = 2;
+  connections.forEach(([a, b]) => {
+    ctx.beginPath();
+    ctx.moveTo(landmarks[a][0], landmarks[a][1]);
+    ctx.lineTo(landmarks[b][0], landmarks[b][1]);
+    ctx.stroke();
+  });
+  landmarks.forEach(([x, y]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = '#fbc2eb';
+    ctx.fill();
+  });
+}
+
+function detectGesture(lm) {
+  const thumbUp = lm[4][1] < lm[2][1] && lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1] && lm[20][1] > lm[18][1];
+  const thumbDown = lm[4][1] > lm[3][1] && lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1] && lm[20][1] > lm[18][1];
+  const peace = lm[8][1] < lm[6][1] && lm[12][1] < lm[10][1] && lm[16][1] > lm[14][1] && lm[20][1] > lm[18][1];
+  const ok = Math.abs(lm[4][0] - lm[8][0]) < 35 && Math.abs(lm[4][1] - lm[8][1]) < 35 && lm[12][1] < lm[10][1];
+  const onlyPinky = lm[20][1] < lm[18][1] && lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1] && lm[4][1] > lm[3][1];
+  const pointUp = lm[8][1] < lm[6][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1] && lm[20][1] > lm[18][1];
+  const fist = lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1] && lm[20][1] > lm[18][1];
+  const allOpen = lm[8][1] < lm[6][1] && lm[12][1] < lm[10][1] && lm[16][1] < lm[14][1] && lm[20][1] < lm[18][1];
+  const rockSign = lm[8][1] < lm[6][1] && lm[20][1] < lm[18][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1];
+  const callMe = lm[4][1] < lm[2][1] && lm[20][1] < lm[18][1] && lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1] && lm[16][1] > lm[14][1];
+
+  if (thumbUp) return { letter: 'A', confidence: 92 };
+  if (thumbDown) return { letter: 'B', confidence: 90 };
+  if (peace) return { letter: 'C', confidence: 94 };
+  if (ok) return { letter: 'D', confidence: 88 };
+  if (onlyPinky) return { letter: 'E', confidence: 87 };
+  if (pointUp) return { letter: 'F', confidence: 91 };
+  if (fist) return { letter: 'G', confidence: 93 };
+  if (allOpen) return { letter: 'H', confidence: 95 };
+  if (rockSign) return { letter: 'I', confidence: 89 };
+  if (callMe) return { letter: 'J', confidence: 86 };
+
+  return null;
+}
+
+function addSpace() {
+  sentence += ' ';
+  document.getElementById('sentenceText').innerText = sentence || '_';
+}
+
+function clearSentence() {
+  sentence = '';
+  document.getElementById('sentenceText').innerText = '_';
+}
+
+setup();
+</script>
+</body>
+</html>
